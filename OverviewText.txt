@@ -1,0 +1,5 @@
+02/05/22  10:58:43		CommunicationMainFolder: S:/Sci-Chem/PRD/NMR 112/Automated Platform/Final_LabView_allVIs/PythonCommunication
+02/05/22  10:58:43		Psswin: S:/Sci-Chem/PRD/GPC 112/2018-March/Projects
+02/05/22  10:58:43		NMR: C:/PROJECTS/DATA
+02/05/22  10:58:46		Email not OK (535, Username and Password not accepted, set "Allow less secure apps" ON)
+02/05/22  10:58:46		Could not find Monomer_infO.csv
