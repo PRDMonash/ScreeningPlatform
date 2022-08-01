@@ -35,7 +35,7 @@ import save_plots
 import calculateScans
 
 global Labviewscript
-Labviewscript = 'GPC-NMR Timesweep_GUIversion_version4_lab112_gpcPC.vi'
+Labviewscript = 'GPC-NMR Timesweep_GUIversion_version4_lab112_gpcPC.vi' #This is the Labview script that is used
 
 append2 = []
 string_list=[]
