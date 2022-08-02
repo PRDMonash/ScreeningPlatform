@@ -40,6 +40,9 @@ Labviewscript = 'GPC-NMR Timesweep_GUIversion_version4_lab112_gpcPC.vi' #This is
 append2 = []
 string_list=[]
 def updateGUI(updatetext):
+    '''
+    Updates the log text of the experiment
+    '''
     now = datetime.now().strftime('{}/{}/{}  {}:{}:{}'.format('%d','%m','%y','%H', '%M','%S'))
     string = '{}\t\t{}'.format(now, updatetext)
     string_list.append(string)
@@ -164,6 +167,7 @@ def defining_PsswinFolder(folder, update = False):
         updateGUI("New Psswin: {}".format(folder))
     else:
         updateGUI("Psswin: {}".format(folder))
+
 def defining_NMRFolder(folder, update = False):
     global NMRFolder
     NMRFolder = folder
@@ -215,11 +219,11 @@ def debugPrint(printedString):
         pass
 
 try:
-    monomerDF = pd.read_csv('Monomer_info.csv')
+    monomerDF = pd.read_csv('Files/Monomer_info.csv')
     updateGUI('Monomor file found ({} monomers defined)...'.format(monomerDF.shape[0]))
 except:
     monomerDF = pd.DataFrame()
-    updateGUI('Could not find Monomer_infO.csv')
+    updateGUI('Could not find Monomer_info.csv')
 
 def df_to_csv(content, Filename, folder):
     folder = str(folder)
@@ -807,7 +811,9 @@ def extractChemicals():
     global monomerlist
     global chemicals 
 
-    chemicals = pd.read_csv('Chemicals.csv')
+
+    chemicals = pd.read_csv('Files/Chemicals.csv')
+    print(chemicals)
 
     RAFTlist = chemicals[chemicals["class"]=='RAFT']
     solventlist = chemicals[chemicals["class"]=='solvent']
@@ -1368,7 +1374,7 @@ def confirm_code ():
     updateGUI('Code ({}) and timesweep parameters are communicated to LabVIEW software'.format(code))
 
     experiment_extra.loc[0, 'code'] = code
-    monomerDF = pd.read_csv('Monomer_info.csv')
+    monomerDF = pd.read_csv('Files/Monomer_info.csv')
 
     experiment_extra.loc[0, 'Monomer'] = monomer
     experiment_extra.loc[0, 'integrals'] = monomerDF[monomerDF['Monomer'] == monomer].iloc[0,1]
@@ -1988,7 +1994,7 @@ def confirm_code_NMR ():
     updateGUI('Code ({}) and timesweep parameters are communicated to LabVIEW software'.format(code2))
 
     experiment_extra.loc[0, 'code'] = code2
-    monomerDF = pd.read_csv('Monomer_info.csv')
+    monomerDF = pd.read_csv('Files/Monomer_info.csv')
 
     experiment_extra.loc[0, 'Monomer'] = monomer2
     experiment_extra.loc[0, 'integrals'] = monomerDF[monomerDF['Monomer'] == monomer2].iloc[0,1]

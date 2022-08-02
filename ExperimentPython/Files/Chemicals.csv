@@ -1,0 +1,22 @@
+class,name,abbreviation,molecular mass,density
+monomer,Methyl Acrylate,MA,86.09,0.95
+RAFT,2-(Dodecylthiocarbonothioylthio)propionic acid,DoPAT,350.6,
+initiator,Azobisisobutyronitrile,AIBN,164.21,
+solvent,Dimethyl sulfoxide,DMSO,78.13,1.1
+solvent,Butyl Acetate,Butyl Acetate,116.16,0.882
+monomer,Butyl Acrylate,BA,128.17,0.89
+monomer,2-Ethylhexyl acrylate,2EHA,184.279,0.885
+monomer,Dodecyl Acrylate,Dodecyl-A,240.38,0.884
+RAFT,2-Cyano-2-propyl dodecyl trithiocarbonate,CPD-TTC,345.63,
+monomer,Ethyl Acrylate,EA,100.11,0.94
+monomer,Hexyl Acrylate,HA,156.22,0.88
+monomer,Cyclohexyl Acrylate,cycloHA,154.21,0.975
+monomer,Benzyl Acrylate,BenzA,162.19,1.06
+monomer,Propyl Acrylate,PA,114.14,0.92
+monomer,Isobutyl Acrylate,isoBA,128.17,0.89
+monomer,Tertbutyl Acrylate,tertBA,128.17,0.875
+monomer,Methyl Methacrylate, MMA,100.121,0.94
+RAFT,4-Cyano-4-[(dodecylsulfanylthiocarbonyl)sulfanyl]pentanoic acid,CDP-TTC,403.65,
+monomer,Ethyl methacrylate,EMA,114.14,0.92
+monomer,Butyl methacrylate,BMA,142.2,0.89
+RAFT,3??1-car boxyethyl?thio)carbanothioyl)thio)propanoic acid),CTTP,254.35,
