@@ -482,6 +482,7 @@ def isfloat(x):
     else:
         return True
 
+
 spinsolveImage = 'Spinsolve.png'      
 ##### APP ####
 root = Tk()

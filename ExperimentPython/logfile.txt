@@ -1,0 +1,21 @@
+INFO:__main__:started
+INFO:__main__:started
+INFO:__main__:started
+INFO:__main__:started
+INFO:__main__:started
+2022-08-03 12:07:14,696:INFO:__main__:started
+2022-08-03 12:07:37,828:INFO:		__main__:started
+2022-08-03 12:08:33,234:		__main__:started(INFO)
+2022-08-03 12:09:05,450		started (INFO, __main__)
+2022-08-03 12:15:56,947		Software Openend (INFO, Start)
+2022-08-03 12:18:57,161		Software Openend (INFO, Start)
+2022-08-03 12:20:39,727		test (INFO, Start)
+2022-08-03 12:21:03,560		test (INFO, testing)
+2022-08-03 12:22:48,745		test (INFO, testing)
+2022-08-03 12:23:32,967		Software Openend (DEBUG, Start)
+2022-08-03 12:25:35,055		Software Openend (INFO, Start)
+2022-08-03 12:25:36,547		Selected mode: NMR (INFO, Start)
+2022-08-03 12:36:12,409		Software Openend (INFO, Start)
+2022-08-03 12:36:31,313		Software Openend (INFO, App)
+2022-08-03 12:37:24,017		Software Openend (INFO, App)
+2022-08-03 12:37:29,744		yep, this is a test (INFO, test)
