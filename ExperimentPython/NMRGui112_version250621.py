@@ -159,6 +159,7 @@ def defining_communication_folder(parentfolder, update = False):
     except FileNotFoundError as e:
         print('If in lab, use Z:/Sci-Chem/...')
         raise
+    return Temporary_textfile, Pathlastexp_textfile, CommunicationMainFolder
 
 def defining_PsswinFolder(folder, update = False):
     global PsswinFolder

@@ -1,15 +1,5 @@
-02/08/22  16:12:13		CommunicationMainFolder: S:/Sci-Chem/PRD/NMR 112/Automated Platform/Final_LabView_allVIs/PythonCommunication
-02/08/22  16:12:13		Psswin: S:/Sci-Chem/PRD/GPC 112/2018-March/Projects
-02/08/22  16:12:13		NMR: C:/PROJECTS/DATA
-02/08/22  16:12:16		Email not OK (535, Username and Password not accepted, set "Allow less secure apps" ON)
-02/08/22  16:12:16		Monomor file found (4 monomers defined)...
-02/08/22  16:12:30		Mode: NMR
-02/08/22  16:12:33		Reactor parameters confirmed
-02/08/22  16:12:39		Timesweep added to experiment
-02/08/22  16:12:39			Added timesweep: Timesweep 1: From 2.0 minutes (0.45 mL/min) to 3.0 minutes (0.3 mL/min) (NMR interval: 17sec)
-02/08/22  16:12:44		Confirmed timesweep Experiment:
-  Start Stop volume StartFR StopFR stabilisation time dead volume 1 Dead Volume 2 GPC Interval Dead Volume 3 Dilution FR DeadVolume1(min) DeadVolume2(min) DeadVolume3(min) NMR interval mode
-0     2    3    0.9    0.45    0.3                1.3          0.32           N.A          N.A           N.A         N.A          1.06667              N.A              N.A           17  NMR
-02/08/22  16:12:47			Error: No change, entry needs to be a number
-02/08/22  16:13:01		Conversion will be determined based on the butyl acetate solvent peak
-02/08/22  16:13:05		Code (test) and timesweep parameters are communicated to LabVIEW software
+03/08/22  16:29:48		CommunicationMainFolder: S:/Sci-Chem/PRD/NMR 112/Automated Platform/Final_LabView_allVIs/PythonCommunication
+03/08/22  16:29:48		Psswin: S:/Sci-Chem/PRD/GPC 112/2018-March/Projects
+03/08/22  16:29:49		NMR: C:/PROJECTS/DATA
+03/08/22  16:29:51		Email not OK (535, Username and Password not accepted, set "Allow less secure apps" ON)
+03/08/22  16:29:51		Monomor file found (4 monomers defined)...
