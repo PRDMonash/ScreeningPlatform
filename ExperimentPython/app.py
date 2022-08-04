@@ -1,13 +1,17 @@
-from msilib.schema import Font
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
 import os
+import pandas as pd
+
 from log_method import setup_logger
 from defining_folder import defining_communication_folder, defining_PsswinFolder, defining_NMRFolder
 from helpers import isfloat
 from Constants import SETUP_DEFAULT_VALUES_NMR, FONTS
 
+from precheck import check_files
+
+check_files()
 
 logger = setup_logger('App')
 
@@ -260,6 +264,159 @@ def Confirm_reactor_parameters ():
     # Make-up confirm frame
 confirm_reactorParameters = Button(NMRGPC_setup_confirm_frame, text = 'Confirm', command = Confirm_reactor_parameters, height= 3, width = 15, font = FONTS['FONT_BOTTON'])
 confirm_reactorParameters.grid()
+
+def extractChemicals():
+    """
+    Extracts the chemicals; lists needs to be global to be accessed within the popup
+    """
+    global RAFTlist
+    global solventlist
+    global initiatorlist
+    global monomerlist
+    global chemicals 
+
+    chemicals = pd.read_csv('Files/Chemicals.csv')
+    
+    #extracts all chemicals by class
+    RAFTlist = chemicals[chemicals["class"]=='RAFT']
+    solventlist = chemicals[chemicals["class"]=='solvent']
+    initiatorlist = chemicals[chemicals["class"]=='initiator']
+    monomerlist = chemicals[chemicals["class"]=='monomer']
+
+global SolutionDataframe
+SolutionDataframe = pd.DataFrame()
+
+def changeSolution():
+    def confirmSolution():
+        #get all the selected chemicals from the menu fields
+        finalMonomer, finalSolvent, finalRAFT, finalInitiator = optionsMonomer.get(), optionsSolvent.get(), optionsRAFT.get(), optionsinitiator.get() 
+        logger.debug('Selected Chemicals: {}, {}, {}, {}'.format(finalMonomer, finalSolvent, finalRAFT, finalInitiator))
+
+        # extract all values from the entries and checks for floats (no strings); closes window if no string
+        list_entries = [gramRAFT, graminitiator, mLMonomer, mLsolvent]
+        for entry in list_entries:
+            if not isfloat(entry.get()):
+                logger.debug('One of the entries ({}) was a not a float'.format(entry.get()))
+                solution_popup.destroy()
+                return None
+        #get full pandas.Series (from list extracted from csv file) of chemical where abbreviation is finalChemical (from selected chemical in GUI)
+        monomer = (monomerlist[monomerlist['abbreviation']==finalMonomer]) 
+        solvent = (solventlist[solventlist['abbreviation']==finalSolvent])
+        raft = (RAFTlist[RAFTlist['abbreviation']==finalRAFT])
+        initiator = (initiatorlist[initiatorlist['abbreviation']==finalInitiator])
+        logger.debug('Full names of chemicals: {}, {}, {}, {}'.format(monomer, solvent, raft, initiator)) #thse are pandas.core.frame.DataFrame
+        logger.debug('Should be type pandas.core.frame.DataFrame. Real type: {}'.format(type(raft)))
+
+        global SolutionDataframe
+        SolutionDataframe = pd.concat([raft, monomer, initiator, solvent], ignore_index = True) #make one dataframe from selected chemicals
+        logger.debug('SolutionDataframe:\n{}'.format(SolutionDataframe))
+
+        #extract entries () and add them to dataframe (new columns are created (mass (g) and volume (mL)) )
+        SolutionDataframe.loc[SolutionDataframe['class'] == 'RAFT', 'mass (g)'] = float(gramRAFT.get())
+        SolutionDataframe.loc[SolutionDataframe['class'] == 'monomer', 'volume (mL)'] = float(mLMonomer.get())
+        SolutionDataframe.loc[SolutionDataframe['class'] == 'initiator', 'mass (g)'] = float(graminitiator.get())
+        SolutionDataframe.loc[SolutionDataframe['class'] == 'solvent', 'volume (mL)'] = float(mLsolvent.get())
+        logger.debug('SolutionDataframe:\n{}'.format(SolutionDataframe))
+
+        #convert volume to mass where needed
+        SolutionDataframe.loc[SolutionDataframe['class'] == 'monomer', 'mass (g)'] = float(mLMonomer.get()) * float(SolutionDataframe.loc[SolutionDataframe['class'] == 'monomer', 'density'])
+        SolutionDataframe.loc[SolutionDataframe['class'] == 'solvent', 'mass (g)'] = float(mLsolvent.get()) * float(SolutionDataframe.loc[SolutionDataframe['class'] == 'solvent', 'density'])
+
+        #moles in dataframe for all chemicals
+        SolutionDataframe['moles (mol)'] = SolutionDataframe['mass (g)'] / SolutionDataframe['molecular mass']
+        #molar in dataframe for all entries
+        total_volume = SolutionDataframe['volume (mL)'].sum()
+        SolutionDataframe['Molar (M)'] = SolutionDataframe['moles (mol)'] / (total_volume/1000)
+        #eq in dataframe for all entries
+        molesRAFT = float(SolutionDataframe.loc[SolutionDataframe['class']=='RAFT', 'moles (mol)'])
+        SolutionDataframe['eq'] = [i/molesRAFT for i in SolutionDataframe['moles (mol)']]
+        
+        #create summary string
+        #Format --> Monomer:Raft:ini xx:1:xxx (xxxx g/mol); xM Monomer; Solvent
+        raft = SolutionDataframe.iloc[0]
+        monomer = SolutionDataframe.iloc[1]
+        initiator = SolutionDataframe.iloc[2]
+        solvent = SolutionDataframe.iloc[3]
+
+        Mn_100 = raft['molecular mass'] + (monomer['molecular mass']*monomer['eq']) #Mn for 100% conversion
+        
+        summaryString = '{}:{}:{}  {} : {} : {} ( {} g/mol);\n {}M {};\n {}'.format(raft['abbreviation'], 
+                                                                            monomer['abbreviation'], 
+                                                                            initiator['abbreviation'],
+                                                                            round(raft['eq'],1),
+                                                                            round(monomer['eq'],2),
+                                                                            round(initiator['eq'],2),
+                                                                            round(Mn_100, 1),
+                                                                            round(monomer['Molar (M)'],2),
+                                                                            monomer['abbreviation'],
+                                                                            solvent['abbreviation'])
+        
+
+        
+        solution_popup.destroy()
+        solutionSummary1.config(text = summaryString)
+        logger.info('Reaction Solution confirmed: {}'.format(summaryString.replace('\n','')))
+        #solutionDataFrame.loc['Monomer'] = [finalMonomer, monomerlist.loc[monomerlist['name']== finalMonomer, 'molecular mass'], monomerlist.loc[monomerlist['name']== finalMonomer, 'density']]
+
+    solution_popup = Toplevel()
+    solution_popup.title('Reaction Solution')
+
+    popuptitle = Label(solution_popup, text = 'Reaction Solution', font = FONTS['FONT_HEADER'], padx=15)
+    popuptitle.grid(row=0, column = 0, columnspan= 3)
+    #monomer
+    mLMonomer = Entry(solution_popup) # Entry in Column 1
+    mLMonomer.grid(row=1, column = 1)
+
+    optionsMonomer = StringVar()
+    optionsMonomer.set('MA')
+    MenuMonomer = OptionMenu(solution_popup, optionsMonomer, *monomerlist['abbreviation']) #Menu in Column 0
+    MenuMonomer.grid(row = 1, column= 0)
+
+    monomerlabel = Label(solution_popup, text = 'mL') # Unit in column 2
+    monomerlabel.grid(row=1, column = 2)
+    #RAFT
+    gramRAFT = Entry(solution_popup)
+    gramRAFT.grid(row=2, column = 1)
+
+    optionsRAFT = StringVar()
+    optionsRAFT.set('DoPAT')
+    MenuRAFT = OptionMenu(solution_popup, optionsRAFT, *RAFTlist['abbreviation'])
+    MenuRAFT.grid(row = 2, column= 0)
+
+    RAFTlabel = Label(solution_popup, text = 'g')
+    RAFTlabel.grid(row=2, column = 2)
+    #initator
+    graminitiator = Entry(solution_popup)
+    graminitiator.grid(row=3, column = 1)
+
+    optionsinitiator = StringVar()
+    optionsinitiator.set("AIBN")
+    MenuInitiator = OptionMenu(solution_popup, optionsinitiator, *initiatorlist['abbreviation'])
+    MenuInitiator.grid(row = 3, column= 0)
+
+    initiatorlabel = Label(solution_popup, text = 'g')
+    initiatorlabel.grid(row=3, column = 2)
+    #solvent
+    mLsolvent = Entry(solution_popup)
+    mLsolvent.grid(row=4, column = 1)
+
+    optionsSolvent = StringVar()
+    optionsSolvent.set("DMSO")
+    MenuSolvent = OptionMenu(solution_popup, optionsSolvent, *solventlist['abbreviation'])
+    MenuSolvent.grid(row = 4, column= 0)
+
+    solventlabel = Label(solution_popup, text = 'mL')
+    solventlabel.grid(row=4, column = 2)
+
+    Confirmsolution2 = Button(solution_popup, text = 'Confirm', command = confirmSolution, font = FONTS['FONT_BOTTON']) # Upon Confirmation --> confirmSolution()
+    Confirmsolution2.grid(row=5, column = 1)
+
+     
+extractChemicals()
+solutionSummary1 = Label(NMRGPC_setup_parameter_frame, text = 'Reaction Solution', bg = 'gray', font = FONTS['FONT_NORMAL'], pady = 20)
+solutionSummary1.grid(row = i+1, column= 0, columnspan = 2, rowspan = 2 )
+solution_button1 = Button(NMRGPC_setup_parameter_frame, text = 'Reaction solution', command = changeSolution)
+solution_button1.grid(row = i+1, column= 3)
 
 tab_control.grid()
 root.mainloop()

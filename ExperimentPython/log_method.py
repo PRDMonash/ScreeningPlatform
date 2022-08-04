@@ -1,6 +1,6 @@
 import logging
 
-def setup_logger(name, filename = 'logfile.txt', level = logging.INFO):
+def setup_logger(name, filename = 'logfile.txt', level = logging.DEBUG):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     formatter = logging.Formatter('%(levelname)s\t|\t%(asctime)s\t\t%(message)s (%(name)s)')
