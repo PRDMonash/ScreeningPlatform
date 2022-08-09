@@ -20,8 +20,8 @@ FONTS = {'FONT_NORMAL':('Ariel', 15),
     'FONT_SMALL' : ('Ariel', 10),
     'FONT_SMALL_BOLD' : ('Ariel', 10, 'bold')}
 
-col_names = ['Start_min','Stop_min', 'Volume', 'StartFR','StopFR', 'StabilisationTime', 'DeadVolume1', 'DeadVolume2', 'DeadVolume3','NMRInterval','GPCInterval' ,'DilutionFR', 'DeadVolume1(min)', 'DeadVolume2(min)', 'DeadVolume3(min)' , 'Mode']
-TIMESWEEP_PARAMETERS = pd.DataFrame(columns = col_names)
+col_names_parameters = ['Start_min','Stop_min', 'Volume', 'StartFR','StopFR', 'StabilisationTime', 'DeadVolume1', 'DeadVolume2', 'DeadVolume3','NMRInterval','GPCInterval' ,'DilutionFR', 'DeadVolume1(min)', 'DeadVolume2(min)', 'DeadVolume3(min)' , 'Mode']
+TIMESWEEP_PARAMETERS = pd.DataFrame(columns = col_names_parameters)
 
 DRIVE = 'S'
 FOLDERS = {'COMMUNICATION': os.path.join(os.path.dirname(os.getcwd()),'CommunicationFolder'),

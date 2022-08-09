@@ -1,3 +1,4 @@
+from pathlib import Path
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
@@ -5,10 +6,12 @@ import os
 import pandas as pd
 
 from log_method import setup_logger
-from defining_folder import defining_communication_folder, defining_PsswinFolder, defining_NMRFolder
+from defining_folder import defining_communication_folder, defining_PsswinFolder, defining_NMRFolder, SearchExperimentFolder
 from helpers import isfloat
 from Constants import SETUP_DEFAULT_VALUES_NMR, FONTS, TIMESWEEP_PARAMETERS, FOLDERS
 import calculateScans
+
+
 
 from precheck import check_files
 
@@ -65,7 +68,7 @@ def NMRGPC():
 
     tab_control.tab(tab_NMRGPC_Setup, state = 'normal')
     tab_control.tab(tab_NMRGPC_Timesweeps, state = 'disabled')
-    tab_control.tab(tab_NMRGPC_Initialisation, state = 'disabled')
+    tab_control.tab(tab_NMRGPC_Initialisation, state = 'normal')
     tab_control.tab(tab_NMRGPC_Conversion, state = 'disabled')
     tab_control.insert(1, tab_overview, state = 'normal')
     tab_control.select(tab_NMRGPC_Setup)
@@ -302,19 +305,18 @@ def changeSolution():
         solvent = (solventlist[solventlist['abbreviation']==finalSolvent])
         raft = (RAFTlist[RAFTlist['abbreviation']==finalRAFT])
         initiator = (initiatorlist[initiatorlist['abbreviation']==finalInitiator])
-        logger.debug('Full names of chemicals: {}, {}, {}, {}'.format(monomer, solvent, raft, initiator)) #thse are pandas.core.frame.DataFrame
-        logger.debug('Should be type pandas.core.frame.DataFrame. Real type: {}'.format(type(raft)))
+        #logger.debug('Full names of chemicals: {}, {}, {}, {}'.format(monomer, solvent, raft, initiator)) #thse are pandas.core.frame.DataFrame
+        #logger.debug('Should be type pandas.core.frame.DataFrame. Real type: {}'.format(type(raft)))
 
         global SolutionDataframe
         SolutionDataframe = pd.concat([raft, monomer, initiator, solvent], ignore_index = True) #make one dataframe from selected chemicals
-        logger.debug('SolutionDataframe:\n{}'.format(SolutionDataframe))
+
 
         #extract entries () and add them to dataframe (new columns are created (mass (g) and volume (mL)) )
         SolutionDataframe.loc[SolutionDataframe['class'] == 'RAFT', 'mass (g)'] = float(gramRAFT.get())
         SolutionDataframe.loc[SolutionDataframe['class'] == 'monomer', 'volume (mL)'] = float(mLMonomer.get())
         SolutionDataframe.loc[SolutionDataframe['class'] == 'initiator', 'mass (g)'] = float(graminitiator.get())
         SolutionDataframe.loc[SolutionDataframe['class'] == 'solvent', 'volume (mL)'] = float(mLsolvent.get())
-        logger.debug('SolutionDataframe:\n{}'.format(SolutionDataframe))
 
         #convert volume to mass where needed
         SolutionDataframe.loc[SolutionDataframe['class'] == 'monomer', 'mass (g)'] = float(mLMonomer.get()) * float(SolutionDataframe.loc[SolutionDataframe['class'] == 'monomer', 'density'])
@@ -354,6 +356,8 @@ def changeSolution():
         solution_popup.destroy()
         solutionSummary1.config(text = summaryString)
         logger.info('Reaction Solution confirmed: {}'.format(summaryString.replace('\n','')))
+        SolutionDataframe.to_csv(os.path.join(CommunicationMainFolder, 'code_Solution.csv'))
+        logger.info('code_Solution.csv saved in Communication folder ({})'.format(CommunicationMainFolder))
         
 
     solution_popup = Toplevel()
@@ -569,14 +573,17 @@ def finalize_timesweeps ():
                 
     logger.info('Confirmed timesweep Experiment:\n{}'.format(TIMESWEEP_PARAMETERS))
     scannumbers = calculateScans.CalculateScans(TIMESWEEP_PARAMETERS, mode = 'GPCandNMR')
-    print(scannumbers)
+    
+    scannumbers.to_csv(os.path.join(CommunicationMainFolder, 'code_Scans.csv'))
+    logger.info('code_Scans.csv saved in communication folder ({})'.format(CommunicationMainFolder))
+
     totalscan = scannumbers['Stop Scan GPC'].iloc[-1]
-    total_time = (totalscan * TIMESWEEP_PARAMETERS.loc[0,'NMR interval']) /60
+    total_time = (totalscan * TIMESWEEP_PARAMETERS.loc[0,'NMRInterval']) /60
     totalgpc = sum([scannumbers['GPC Samples'].iloc[i] for i in range(int(scannumbers.shape[0]))])
         
     entry1 = TIMESWEEP_PARAMETERS.iloc[0]
-    stabili = ((entry1['volume']*entry1['stabilisation time']))
-    allDvs = (((entry1['dead volume 1'] + entry1['Dead Volume 2']+ entry1['Dead Volume 3']) * int(scannumbers.shape[0])))
+    stabili = ((entry1['Volume']*entry1['StabilisationTime']))
+    allDvs = (((entry1['DeadVolume1'] + entry1['DeadVolume2']+ entry1['DeadVolume3']) * int(scannumbers.shape[0])))
     ts_number= int(scannumbers.shape[0])
     totalvolume = stabili +(ts_number* allDvs)
 
@@ -589,6 +596,7 @@ def finalize_timesweeps ():
     summary_4 = Label(NMRGPC_timesweep_confirm_frame, text = 'Volume Needed:       {} mL'.format(round(totalvolume,1)), width = 90, bg= 'gray', anchor = 'w')
     summary_4.grid(row= 4, column= 0)
 
+    logger.info('Experiment will take {} minutes; +/- {} mL reaction solution is needed.'.format(total_time, totalvolume))
     ts_from_en.configure(state = 'readonly')
     ts_to_en.configure(state = 'readonly')
     insert_ts_btm.configure(state = 'disabled')
@@ -606,5 +614,349 @@ summary_1.grid(row= 1, column= 0)
 confirm_ts_btm = Button(NMRGPC_timesweep_confirm_frame, text = 'Confirm', height= 3, width = 15,  command = finalize_timesweeps, state = 'disabled', font = FONTS['FONT_BOTTON'])
 confirm_ts_btm.grid(row= 1, column =2, rowspan = 3)
 
+####### Conversion Tab GPC #######
+NMRGPC_top_frame_conv = Frame(tab_NMRGPC_Conversion, bg='white', width=1000, height=50, pady=3, padx = 400)
+NMRGPC_top_frame_conv.grid(row=0, sticky="ew")
+
+name_window_conv = Label(NMRGPC_top_frame_conv, text= 'Conversion',bg='white', font = FONTS['FONT_HEADER'])
+name_window_conv.grid()
+
+def confirm_conversion_NMRGPC ():
+    global conversion_determination
+    global mol_init_monomer
+    global mol_init_IS
+
+    conversion_determination= Conversion_option_NMRGPC.get()
+    # 1 = Internal standard, 2 = monomer peaks , 3 = solvent
+
+    if conversion_determination == 1: #confirm for Internal Standard
+        if isfloat(mol_monomerEntry_NMRGPC.get()) and isfloat(mol_internal_standardEntry_NMRGPC.get()): # Mols must be given to calculate ratio and conversion
+            mol_init_monomer = float(mol_monomerEntry_NMRGPC.get())
+            mol_init_IS = float(mol_internal_standardEntry_NMRGPC.get())
+            Conversion_Label_NMRGPC.config(text = 'Ratio Internal Standard/monomer is {}'.format(float(mol_init_IS)/float(mol_init_monomer)))
+
+            mol_internal_standardEntry_NMRGPC.configure(state='disabled')
+            mol_monomerEntry_NMRGPC.configure(state = 'disabled')
+            mol_monomerLabel_NMRGPC.configure(foreground = 'gray' )
+            mol_ISlabel_NMRGPC.configure(foreground = 'gray' )
+            confirm_conv_btm_NMRGPC.configure(state ='disabled')
+            tab_control.tab(tab_NMRGPC_Initialisation, state = 'normal')
+            tab_control.select(tab_NMRGPC_Initialisation)
+            monomer_radio_NMRGPC.configure(state = 'disabled')
+            IS_radio_NMRGPC.configure(state= 'disabled')
+            logger.info('Conversion will be determined via internal standard peaks (4-hydroxy benzaldehyde; ratio IS/monomer {})'.format(float(mol_init_IS)/float(mol_init_monomer)))
+        else:
+            Conversion_Label_NMRGPC.config(text = 'Entry has to be a number')
+
+    elif conversion_determination == 2: # Confirm for monomer peaks
+        mol_internal_standardEntry_NMRGPC.configure(state='disabled')
+        mol_monomerEntry_NMRGPC.configure(state = 'disabled')
+        mol_monomerLabel_NMRGPC.configure(foreground = 'gray' )
+        mol_ISlabel_NMRGPC.configure(foreground = 'gray' )
+        tab_control.tab(tab_NMRGPC_Initialisation, state = 'normal')
+        tab_control.select(tab_NMRGPC_Initialisation)
+        confirm_conv_btm_NMRGPC.configure(state ='disabled')
+        monomer_radio_NMRGPC.configure(state = 'disabled')
+        IS_radio_NMRGPC.configure(state= 'disabled')
+        logger.info('Conversion will be determined via the monomer peaks (no internal standard)')
+    
+    elif conversion_determination == 3: # Confirm for solvent (butyl acetate)
+        if len(SolutionDataframe) == 0:
+            logger.warning('Solution data is not given!')
+            changeSolution()
+            return
+        if 'Butyl Acetate' in list(SolutionDataframe['name']):
+            mol_internal_standardEntry_NMRGPC.configure(state='disabled')
+            mol_monomerEntry_NMRGPC.configure(state = 'disabled')
+            mol_monomerLabel_NMRGPC.configure(foreground = 'gray' )
+            mol_ISlabel_NMRGPC.configure(foreground = 'gray' )
+            tab_control.tab(tab_NMRGPC_Initialisation, state = 'normal')
+            tab_control.select(tab_NMRGPC_Initialisation)
+            confirm_conv_btm_NMRGPC.configure(state ='disabled')
+            monomer_radio_NMRGPC.configure(state = 'disabled')
+            IS_radio_NMRGPC.configure(state= 'disabled')
+            logger.info('Conversion will be determined via solvent (butyl acetate) + monomer peak')
+        else:
+            Conversion_Label_NMRGPC.config(text = 'Solvent is not Butyl Acetate.')
+
+
+    conversion_determination = Conversion_option_NMRGPC.get() #1 = internal standard, 2 = monomer, 3 = solvent
+
+def IS_selected_NMRGPC():
+    '''If internal standard option is selected'''
+    mol_internal_standardEntry_NMRGPC.configure(state = 'normal')
+    mol_monomerEntry_NMRGPC.configure(state = 'normal')
+    Conversion_Label_NMRGPC.config(text = 'Internal Standard')
+    mol_monomerLabel_NMRGPC.configure(foreground = 'black' )
+    mol_ISlabel_NMRGPC.configure(foreground = 'black' )
+    
+def monomer_selected_NMRGPC():
+    '''If monomer option is selected, IS entry fields are disabled'''
+    Conversion_Label_NMRGPC.config(text = 'Conversion will be calculated with monomer peaks (only MA for now)')
+    mol_internal_standardEntry_NMRGPC.configure(state='disabled')
+    mol_monomerEntry_NMRGPC.configure(state = 'disabled')
+    mol_monomerLabel_NMRGPC.configure(foreground = 'gray' )
+    mol_ISlabel_NMRGPC.configure(foreground = 'gray' )
+
+def solvent_selected_NMRGPC():
+    '''If solvent option is selected, IS entry fields are disabled'''
+    Conversion_Label_NMRGPC.config(text = 'Conversion will be calculated based on the solvent+monomer peak (butyl acetate)')
+    mol_internal_standardEntry_NMRGPC.configure(state='disabled')
+    mol_monomerEntry_NMRGPC.configure(state = 'disabled')
+    mol_monomerLabel_NMRGPC.configure(foreground = 'gray' )
+    mol_ISlabel_NMRGPC.configure(foreground = 'gray' )
+
+Conversion_option_NMRGPC = IntVar()
+
+IS_radio_NMRGPC = Radiobutton(tab_NMRGPC_Conversion, text="Internal Standard", font = FONTS['FONT_ENTRY'], variable=Conversion_option_NMRGPC, value=1, command = IS_selected_NMRGPC)
+IS_radio_NMRGPC.grid()
+mol_monomerLabel_NMRGPC = Label(tab_NMRGPC_Conversion, text = "Monomer initial (mol)")
+mol_monomerLabel_NMRGPC.grid()
+mol_monomerEntry_NMRGPC= Entry(tab_NMRGPC_Conversion)
+mol_monomerEntry_NMRGPC.grid()
+mol_ISlabel_NMRGPC = Label(tab_NMRGPC_Conversion, text = "4-hydroxy benzaldehyde initial (mol)")
+mol_ISlabel_NMRGPC.grid()
+mol_internal_standardEntry_NMRGPC = Entry(tab_NMRGPC_Conversion)
+mol_internal_standardEntry_NMRGPC.grid()
+
+monomer_radio_NMRGPC = Radiobutton(tab_NMRGPC_Conversion, text="Monomer", font = FONTS['FONT_ENTRY'], variable=Conversion_option_NMRGPC, value=2, command = monomer_selected_NMRGPC)
+monomer_radio_NMRGPC.grid()
+
+solvent_radio_NMRGPC = Radiobutton(tab_NMRGPC_Conversion, text="Solvent (Butyl Acetate)", font = FONTS['FONT_ENTRY'], variable=Conversion_option_NMRGPC, value=3, command = solvent_selected_NMRGPC)
+solvent_radio_NMRGPC.grid()
+
+Conversion_info_frame_NMRGPC = Frame(tab_NMRGPC_Conversion)
+Conversion_info_frame_NMRGPC.grid()
+
+Conversion_Label_NMRGPC = Label(Conversion_info_frame_NMRGPC, text = 'Choose option')
+Conversion_Label_NMRGPC.grid(row = 0, column = 1, columnspan = 3)
+
+confirm_conv_btm_NMRGPC = Button(Conversion_info_frame_NMRGPC, text = 'Confirm', height= 3, width = 15,  command = confirm_conversion_NMRGPC, font = FONTS['FONT_BOTTON'])
+confirm_conv_btm_NMRGPC.grid(row= 1, column =2, rowspan = 3)
+
+####### Init Tab ######
+experiment_extra = pd.DataFrame(columns = ['code', 'Mainfolder','GPCfolder', 'Timesweepfolder', 'Infofolder','Softwarefolder', 'Rawfolder', 'Plotsfolder'])
+
+#Create Main frame of init Tab
+NMRGPC_top_frame_init = Frame(tab_NMRGPC_Initialisation, bg='white', width=1000, height=50, pady=3, padx = 400)
+NMRGPC_top_frame_init.grid(row=0, sticky="ew")
+NMRGPC_picture_frame_init = Frame(tab_NMRGPC_Initialisation, bg='white', width=1000, height=300, padx=175, pady=3)
+NMRGPC_picture_frame_init.grid(row=1, sticky="nsew")
+NMRGPC_parameter_frame_init = Frame(tab_NMRGPC_Initialisation, bg='gray', width=1000, height=350, pady=3,padx = 3)
+NMRGPC_parameter_frame_init.grid(row=3, sticky="ew")
+NMRGPC_btm_frame_init = Frame(tab_NMRGPC_Initialisation, bg='gray', width=1000, height=50, pady=10, padx = 400)
+NMRGPC_btm_frame_init.grid(row=4, sticky="ew")
+
+#Make-Up Top Frame in init Tab
+name_window_init = Label(NMRGPC_top_frame_init, text= 'Initialisation',bg='white', font = FONTS['FONT_HEADER'])
+name_window_init.grid()
+
+#Make-Up picture_frame_init in Timsweep Tab
+picture_init = PhotoImage(file = 'Pictures\Init_picture.png')
+LabelPicture_init = Label(master = NMRGPC_picture_frame_init, image=picture_init, bg ='white')
+LabelPicture_init.grid(row = 1, column =1)
+
+#Make-Up Parameter_frame_timesweep in ininialisation Tab
+tsparam = Label(NMRGPC_parameter_frame_init, text = "Start Initialisation", bg = 'gray', font=FONTS['FONT_HEADER_BOLD'], padx = 150)
+tsparam.grid(row = 0, column =1, columnspan=2)
+#Experiment code
+
+def check_experimentFoldertxtfile(expfolder, exp_code):
+    directory_code = os.path.basename(expfolder).split('_')[-1]
+    if not directory_code == exp_code:
+        logger.warning('It seems that the code given by LabView ({}) does not match the real code ({}). Please give the correct Experiment Folder'.format(directory_code, exp_code))
+        experimentfolder = input('>> ')
+        return experimentfolder
+    return expfolder
+
+def confirmLabview():
+    '''
+    Confirms if LabView is started
+    '''
+    global experiment_extra
+
+    if not os.path.exists(Pathlastexp_textfile):
+        logger.warning('Text file ({}) were experiment folder is saved does not exists.'.format(Pathlastexp_textfile))
+
+    ExperimentFolder = Path((open(Pathlastexp_textfile, 'r').read().replace("\\", "/")))
+    logger.debug('Experiment folder communicated by LabView: {}'.format(ExperimentFolder))
+
+    ExperimentFolder = Path(check_experimentFoldertxtfile(ExperimentFolder, code))
+
+    ExperimentFolder_SDRIVE = str(ExperimentFolder)
+    try:
+        ExperimentFolder_SDRIVE = ExperimentFolder_SDRIVE.replace('Z', 'S', 1)
+        ExperimentFolder_SDRIVE = Path(ExperimentFolder_SDRIVE)
+    except:
+        pass
+
+    found = False
+    while found == False:
+        if ExperimentFolder.exists():
+            labelLabviewInfo.configure(text = 'Experiment folder found ({})'.format(ExperimentFolder))
+            logger.info('Experiment folder found as {}'.format(ExperimentFolder))
+            found = True
+        elif ExperimentFolder_SDRIVE.exists():
+            ExperimentFolder = ExperimentFolder_SDRIVE
+            logger.info('Experiment folder found as {} (changed to S drive)'.format(ExperimentFolder))
+            labelLabviewInfo.configure(text = 'Experiment folder found ({})'.format(ExperimentFolder))
+            found = True
+        else:
+            labelLabviewInfo.configure(text = 'Experiment folder NOT found.')
+            logger.warning('Experiment Folder given by LabView ({}) not found. Please give the correct Experiment Folder.'.format(ExperimentFolder))
+            ExperimentFolder = Path(input('>> '))
+
+    experiment_extra.loc[0, 'Mainfolder'] = ExperimentFolder
+    experiment_extra = SearchExperimentFolder(ExperimentFolder,CommunicationMainFolder, experiment_extra, mode = 'GPCandNMR')
+
+    labelPss.configure(text = 'Open the PSSwin software and name the experiment ({}.txt).'.format(code))
+    confirmPss.configure(state = 'normal')
+    HelpPss.configure(state = 'normal')
+    confirmLabview.configure(state = 'disabled')
+    HelpLabview.configure(state = 'disabled')
+
+def confirmPss():
+    labelPssInfo.configure(text = 'Pss Check')
+    logger.info('Psswin is okay')
+    labelSpinsolve.configure(text = 'Name the experiment ({}) in the Spinsolve software.'.format(code))
+    confirmPss.configure(state = 'disabled')
+    HelpPss.configure(state = 'disabled')
+    confirmSpinsolve.configure(state = 'normal')
+    HelpSpinsolve.configure(state = 'normal')
+
+def confirmSpinsolve():
+    labelSpinsolveInfo.configure(text = 'Spinsolve Check')
+    logger.info('Spinsolve is okay')
+    confirmSpinsolve.configure(state = 'disabled')
+    HelpSpinsolve.configure(state = 'disabled')
+    confirmEmail.configure(state = 'normal')
+    AddEmail.configure(state = 'normal')
+    entryEmail.configure(state = 'normal')
+    experiment_extra['Emails'] = [[]]
+    labelEmailinfo.configure(text = 'Optional: Data will be send via email at the end of the experiment')
+
+def add_emailadress():
+    emailadress = entryEmail.get()
+    print(emailadress)
+    print(experiment_extra.at[0, 'Emails'])
+    print(type(experiment_extra.at[0, 'Emails']))
+    experiment_extra.loc[0, 'Emails'].append(emailadress)
+    entryEmail.delete(0, 'end')
+    labelEmailinfo.configure(text = 'Email adresses : {}'.format(tuple(experiment_extra.loc[0, 'Emails'])))
+
+def confirm_emailadress():
+    AddEmail.configure(state = 'disabled')
+    entryEmail.configure(state = 'readonly')
+    start_btn.configure(state = 'normal')
+    confirmEmail.configure(state = 'disabled')
+
+def HelpLabView():
+    tab_control.tab(tab_LabView_help, state = 'normal')
+    tab_control.select(tab_LabView_help)
+    tab_control.tab(tab_NMRGPC_Setup, state = 'disabled')
+    tab_control.tab(tab_NMRGPC_Timesweeps, state = 'disabled')
+    tab_control.tab(tab_NMRGPC_Initialisation, state = 'disabled')
+
+def HelpPss():
+    tab_control.tab(tab_Pss_help, state = 'normal')
+    tab_control.select(tab_Pss_help)
+    tab_control.tab(tab_NMRGPC_Setup, state = 'disabled')
+    tab_control.tab(tab_NMRGPC_Timesweeps, state = 'disabled')
+    tab_control.tab(tab_NMRGPC_Initialisation, state = 'disabled')
+
+def HelpSpinsolve():
+    tab_control.tab(tab_Spinsolve_help, state = 'normal')
+    tab_control.select(tab_Spinsolve_help)
+    tab_control.tab(tab_NMRGPC_Setup, state = 'disabled')
+    tab_control.tab(tab_NMRGPC_Timesweeps, state = 'disabled')
+    tab_control.tab(tab_NMRGPC_Initialisation, state = 'disabled')
+
+
+def confirm_code ():
+    '''
+    Extracts code from entry field and writes it in temporary text file (as 'Code,,code') in Communication folder. Can now be read by LabView.
+    '''
+    global code
+    code = code_en.get()
+    code_en.configure(state = 'readonly')
+    NMRGPC_confirm_code.configure(state = 'disabled')
+
+    with open(Temporary_textfile,"a") as f:
+        f.write('Code,,')
+        f.write(code)
+        f.close()
+
+    logger.info('Code ({}) and timesweep parameters are communicated to LabVIEW software'.format(code))
+
+    experiment_extra.loc[0, 'code'] = code
+
+    labelLabview.configure(text = 'Open the LabVIEW and start running the software.')
+    confirmLabview.configure(state = 'normal')
+    HelpLabview.configure(state = 'normal')
+    return code
+    
+code_lbl = Label(NMRGPC_parameter_frame_init, text = 'Experiment Code', bg = 'gray', width = 15, font=FONTS['FONT_NORMAL'])
+code_lbl.grid(row =3, column =0)
+
+code_en = Entry(NMRGPC_parameter_frame_init, font= FONTS['FONT_ENTRY'], width = 30)
+code_en.grid(row =3, column =1)
+    
+#ok Button for code
+NMRGPC_confirm_code = Button(NMRGPC_parameter_frame_init, text ='OK', font= FONTS['FONT_BOTTON'], command = confirm_code, width = 6)
+NMRGPC_confirm_code.grid(row =4, column =1, columnspan = 2)
+    
+labelLabview = Label(NMRGPC_parameter_frame_init, text = 'LABVIEW', font= FONTS['FONT_NORMAL'], bg= 'gray')
+labelLabview.grid(row =5, column = 0, columnspan =2)
+confirmLabview = Button(NMRGPC_parameter_frame_init, text = 'OK', font = FONTS['FONT_BOTTON'], command = confirmLabview, state = 'disabled', width = 6)
+confirmLabview.grid(row = 5, column = 3)
+HelpLabview = Button(NMRGPC_parameter_frame_init, text = 'Help', font = FONTS['FONT_BOTTON'], state = 'disabled', command = HelpLabView, width = 6)
+HelpLabview.grid(row = 5, column = 4)
+labelLabviewInfo = Label(NMRGPC_parameter_frame_init, text = '', font = FONTS['FONT_SMALL'], bg= 'gray')
+labelLabviewInfo.grid(row = 6, column = 0, columnspan= 2)
+
+labelPss = Label(NMRGPC_parameter_frame_init, text = 'PSS', font= FONTS['FONT_NORMAL'], bg= 'gray')
+labelPss.grid(row =7, column = 0, columnspan =2)
+confirmPss = Button(NMRGPC_parameter_frame_init, text = 'OK', font = FONTS['FONT_BOTTON'], state= 'disabled', command = confirmPss, width = 6)
+confirmPss.grid(row = 7, column = 3)
+HelpPss = Button(NMRGPC_parameter_frame_init, text = 'Help', font = FONTS['FONT_BOTTON'], state = 'disabled', command = HelpPss, width = 6)
+HelpPss.grid(row = 7, column = 4)
+labelPssInfo = Label(NMRGPC_parameter_frame_init, text = '', font = FONTS['FONT_SMALL'], bg= 'gray')
+labelPssInfo.grid(row = 8, column = 0, columnspan= 2)
+
+labelSpinsolve = Label(NMRGPC_parameter_frame_init, text = 'Spinsolve', font= FONTS['FONT_NORMAL'], bg= 'gray')
+labelSpinsolve.grid(row =9, column = 0, columnspan =2)
+confirmSpinsolve = Button(NMRGPC_parameter_frame_init, text = 'OK', font = FONTS['FONT_BOTTON'], state = 'disabled', command = confirmSpinsolve, width = 6)
+confirmSpinsolve.grid(row = 9, column = 3)
+HelpSpinsolve = Button(NMRGPC_parameter_frame_init, text = 'Help', font = FONTS['FONT_BOTTON'], state = 'disabled', command = HelpSpinsolve, width = 6)
+HelpSpinsolve.grid(row = 9, column = 4)
+labelSpinsolveInfo = Label(NMRGPC_parameter_frame_init, text = '', font = FONTS['FONT_SMALL'], bg= 'gray')
+labelSpinsolveInfo.grid(row = 10, column = 0, columnspan= 2)
+
+labelEmail= Label(NMRGPC_parameter_frame_init, text = 'Email', font= FONTS['FONT_NORMAL'], bg= 'gray')
+labelEmail.grid(row =11, column = 0, columnspan =1)
+entryEmail= Entry(NMRGPC_parameter_frame_init, text = 'Email', font= FONTS['FONT_SMALL'], state = 'readonly', width = 30)
+entryEmail.grid(row =11, column = 1, columnspan =1)
+confirmEmail = Button(NMRGPC_parameter_frame_init, text = 'Confirm', font = FONTS['FONT_BOTTON'], state = 'disabled', command = confirm_emailadress, width = 6)
+confirmEmail.grid(row = 11, column = 3)
+AddEmail = Button(NMRGPC_parameter_frame_init, text = 'Add', font = FONTS['FONT_BOTTON'], state = 'disabled', command = add_emailadress, width = 6)
+AddEmail.grid(row = 11, column = 4)
+labelEmailinfo = Label(NMRGPC_parameter_frame_init, text = '', font = FONTS['FONT_SMALL'], bg= 'gray')
+labelEmailinfo.grid(row = 12, column = 0, columnspan= 2)
+
+def startexp():
+    print('start')
+
+start_btn = Button(NMRGPC_btm_frame_init, text ='Start', font = FONTS['FONT_HEADER_BOLD'] ,state = 'disabled', command = startexp)
+start_btn.grid()
+
+#Make-up page
+top_frame_exp = Frame(tab_overview, bg='white', width=1000, height=50, pady=3, padx = 400)
+parameter_frame_exp = Frame(tab_overview, bg='gray', width=1000, height=350, pady=3)
+top_frame_exp.grid(row=0, sticky="ew")
+parameter_frame_exp.grid(row=1, sticky="ew")
+
+#Make-Up Top Frame in exp Tab
+name_window_exp = Label(top_frame_exp, text= 'Experiment',bg='white', font = FONTS['FONT_HEADER'])
+name_window_exp.grid()
 tab_control.grid()
 root.mainloop()
