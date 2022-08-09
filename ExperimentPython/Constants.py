@@ -1,4 +1,5 @@
-
+import pandas as pd
+import os
 
 # List of list with entry values for GUI
 # [entry (for entry field) , default, parameter name, unit, default value, change (for button)]
@@ -18,3 +19,11 @@ FONTS = {'FONT_NORMAL':('Ariel', 15),
     'FONT_ENTRY': ('Ariel', 17),
     'FONT_SMALL' : ('Ariel', 10),
     'FONT_SMALL_BOLD' : ('Ariel', 10, 'bold')}
+
+col_names = ['Start_min','Stop_min', 'Volume', 'StartFR','StopFR', 'StabilisationTime', 'DeadVolume1', 'DeadVolume2', 'DeadVolume3','NMRInterval','GPCInterval' ,'DilutionFR', 'DeadVolume1(min)', 'DeadVolume2(min)', 'DeadVolume3(min)' , 'Mode']
+TIMESWEEP_PARAMETERS = pd.DataFrame(columns = col_names)
+
+DRIVE = 'S'
+FOLDERS = {'COMMUNICATION': os.path.join(os.path.dirname(os.getcwd()),'CommunicationFolder'),
+            'GPC' : '{}:/Sci-Chem/PRD/GPC 112/2018-March/Projects'.format(DRIVE),
+            'NMR' : 'C:/PROJECTS/DATA'}

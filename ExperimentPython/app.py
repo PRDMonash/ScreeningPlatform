@@ -7,18 +7,19 @@ import pandas as pd
 from log_method import setup_logger
 from defining_folder import defining_communication_folder, defining_PsswinFolder, defining_NMRFolder
 from helpers import isfloat
-from Constants import SETUP_DEFAULT_VALUES_NMR, FONTS
+from Constants import SETUP_DEFAULT_VALUES_NMR, FONTS, TIMESWEEP_PARAMETERS, FOLDERS
+import calculateScans
 
 from precheck import check_files
+
 
 check_files()
 
 logger = setup_logger('App')
 
-DRIVE = 'S'
-Temporary_textfile, Pathlastexp_textfile, CommunicationMainFolder = defining_communication_folder(os.path.join(os.path.dirname(os.getcwd()),'CommunicationFolder'))
-PsswinFolder = defining_PsswinFolder('{}:/Sci-Chem/PRD/GPC 112/2018-March/Projects'.format(DRIVE))
-NMRFolder = defining_NMRFolder('C:/PROJECTS/DATA')
+Temporary_textfile, Pathlastexp_textfile, CommunicationMainFolder = defining_communication_folder(FOLDERS['COMMUNICATION'])
+PsswinFolder = defining_PsswinFolder(FOLDERS['GPC'])
+NMRFolder = defining_NMRFolder(FOLDERS['NMR'])
 
 Labviewscript = 'GPC-NMR Timesweep_GUIversion_version4_lab112_gpcPC.vi'
 
@@ -261,9 +262,6 @@ def Confirm_reactor_parameters ():
     tab_control.select(tab_NMRGPC_Timesweeps) # select next tab
     confirm_reactorParameters.configure(state = 'disabled') # disable confirm botton
     
-    # Make-up confirm frame
-confirm_reactorParameters = Button(NMRGPC_setup_confirm_frame, text = 'Confirm', command = Confirm_reactor_parameters, height= 3, width = 15, font = FONTS['FONT_BOTTON'])
-confirm_reactorParameters.grid()
 
 def extractChemicals():
     """
@@ -356,7 +354,7 @@ def changeSolution():
         solution_popup.destroy()
         solutionSummary1.config(text = summaryString)
         logger.info('Reaction Solution confirmed: {}'.format(summaryString.replace('\n','')))
-        #solutionDataFrame.loc['Monomer'] = [finalMonomer, monomerlist.loc[monomerlist['name']== finalMonomer, 'molecular mass'], monomerlist.loc[monomerlist['name']== finalMonomer, 'density']]
+        
 
     solution_popup = Toplevel()
     solution_popup.title('Reaction Solution')
@@ -414,9 +412,199 @@ def changeSolution():
      
 extractChemicals()
 solutionSummary1 = Label(NMRGPC_setup_parameter_frame, text = 'Reaction Solution', bg = 'gray', font = FONTS['FONT_NORMAL'], pady = 20)
-solutionSummary1.grid(row = i+1, column= 0, columnspan = 2, rowspan = 2 )
+solutionSummary1.grid(row = i+1, column= 0, columnspan = 2, rowspan = 2 ) #row i + 1; i last row from parameters
 solution_button1 = Button(NMRGPC_setup_parameter_frame, text = 'Reaction solution', command = changeSolution)
 solution_button1.grid(row = i+1, column= 3)
+
+    # Make-up confirm frame
+confirm_reactorParameters = Button(NMRGPC_setup_confirm_frame, text = 'Confirm', command = Confirm_reactor_parameters, height= 3, width = 15, font = FONTS['FONT_BOTTON'])
+confirm_reactorParameters.grid()
+
+####TIMESWEEP TAB####
+#Create Main frame of Timesweep Tab
+NMRGPC_timesweep_top_frame = Frame(tab_NMRGPC_Timesweeps, bg='white', width=1000, height=50, pady=3, padx = 400)
+NMRGPC_timesweep_top_frame.grid(row=0, sticky="ew")
+NMRGPC_timesweep_picture_frame = Frame(tab_NMRGPC_Timesweeps, bg='white', width=1000, height=300, padx=175, pady=3)
+NMRGPC_timesweep_picture_frame.grid(row=1, sticky="nsew")
+NMRGPC_timesweep_parameter_frame = Frame(tab_NMRGPC_Timesweeps, bg='gray', width=1000, height=350, pady=3,padx = 3)
+NMRGPC_timesweep_parameter_frame.grid(row=3, sticky="ew")
+NMRGPC_timesweep_confirm_frame = Frame(tab_NMRGPC_Timesweeps, bg='gray', width=1000, height=50, pady=10, padx = 10)
+NMRGPC_timesweep_confirm_frame.grid(row=4, sticky="ew")
+
+#Make-Up Top Frame in Timesweep Tab
+NMRGPC_timesweep_header = Label(NMRGPC_timesweep_top_frame, text= 'Timesweeps',bg='white')
+NMRGPC_timesweep_header.config(font=FONTS['FONT_HEADER'])
+NMRGPC_timesweep_header.grid()
+
+#Make-Up NMRGPC_timesweep_picture_frame in Timsweep Tab
+picture_timesweep = PhotoImage(file = 'Pictures\Timesweeps_pictureFrame.png')
+LabelPicture = Label(master = NMRGPC_timesweep_picture_frame, image=picture_timesweep, bg ='white')
+LabelPicture.grid()
+
+#Make-Up Parameter_frame_timesweep in Timesweep Tab
+NMRGPC_all_ts_info = [] #list where all the timesweeps will be saved
+
+#extracts reactorvolume, NMR interval and GPC interval from confirmed setup parameters 
+reactorvol = SETUP_DEFAULT_VALUES_NMR[0][4]
+NMRinterval1 = SETUP_DEFAULT_VALUES_NMR[4][4]
+GPCinterval1= SETUP_DEFAULT_VALUES_NMR[5][4]
+
+def insert_timesweep():
+    '''
+    Called by insert button in timesweep tab
+    '''
+    #delete whitespaces in entry
+    ts_from_en1 = (ts_from_en.get()).replace(' ', '')
+    ts_to_en1 = (ts_to_en.get()).replace(' ', '')
+
+    #checks if entry is number
+    if isfloat(ts_from_en.get()) == True and isfloat(ts_to_en.get()):
+        if float(ts_from_en1) != float(ts_to_en1) and float(ts_to_en1) != 0 and float(ts_from_en1) !=0: # Checks for non-zero entries and non-identical
+            number_of_added_timesweep = len(NMRGPC_all_ts_info) +1 #if 0 timesweeps, added timesweep will have number 1
+
+            from_ , to_ = float(ts_from_en.get()), float(ts_to_en.get())
+            fr1, fr2 = float(reactorvol)/float(from_),float(reactorvol)/float(to_) #calculate flowrates
+
+            # Creates list with [the label for the GUI, and the content of the label as string, from_minutes, to_minutes]
+            timesweep_info = ['label_{}'.format(number_of_added_timesweep), 'Timesweep {}: From {} minutes ({} mL/min) to {} minutes ({} mL/min) (NMR interval: {}sec, GPC interval: {}min)'.format(number_of_added_timesweep, from_, round(fr1, 3), to_, round(fr2, 3), NMRinterval1, GPCinterval1), from_, to_]
+            logger.debug(timesweep_info)
+            logger.info('Timesweep added: {}'.format(timesweep_info[1]))
+            NMRGPC_all_ts_info.append(timesweep_info) #list of lists e.g. [[label_1, text_1] , [label_2, text_2]]
+
+            for i, ts_info in enumerate(NMRGPC_all_ts_info): # Creates 'List of Timesweeps'
+                ts_info[0] = Label(NMRGPC_timesweep_parameter_frame, text = ts_info[1], bg = 'gray', width = 90, font = FONTS['FONT_SMALL'], anchor = 'w')
+                ts_info[0].grid(row = 5+i, columnspan = 5)
+
+                #to_minute of timesweep i is from_minute of timesweep i+1
+                entryText = DoubleVar()
+                entryText.set(NMRGPC_all_ts_info[-1][-1])
+                logger.debug('This is the to_minutes varialbe of the last entred timesweep : {}'.format(NMRGPC_all_ts_info[-1][-1]))
+                ts_from_en.configure(textvariable=entryText, state= 'readonly')
+
+            confirm_ts_btm.config(state = 'normal')
+            delete_ts_btm.config(state = 'normal')
+        else:
+            logger.warning('Error: No change, entries cannot be the same')
+    else:
+        pass
+
+def delete_timesweep():
+    logger.debug('length of timesweeps is not 0: {}'.format(len(NMRGPC_all_ts_info) != 0))
+    if len(NMRGPC_all_ts_info) != 0:
+        logger.info('TImesweep deleted: {}'.format(NMRGPC_all_ts_info[-1][1]))
+        NMRGPC_all_ts_info[-1][0].destroy() #destroys 'label' of last timesweep
+        NMRGPC_all_ts_info.pop(-1) #deletes full entry in timesweep list
+    else:
+        pass
+
+    #after removing the only one timesweep, disable delete button and fill from_entry with 0
+    if len(NMRGPC_all_ts_info) == 0:
+        confirm_ts_btm.config(state = 'disabled')
+        delete_ts_btm.config(state = 'disabled')
+        entryText = DoubleVar()
+        ts_from_en.configure(textvariable=entryText, state= 'normal')
+
+    # fill the from_entry with to_value of last timesweep
+    else:
+        entryText = DoubleVar()
+        entryText.set(NMRGPC_all_ts_info[-1][-1])
+        ts_from_en.configure(textvariable=entryText, state= 'readonly')
+        pass
+
+
+tsparam_header = Label(NMRGPC_timesweep_parameter_frame, text = "Insert Timesweep Parameters", bg = 'gray', width = 27)
+tsparam_header.config(font= FONTS['FONT_HEADER_BOLD'])
+tsparam_header.grid(row = 0, column =1, columnspan = 4)
+    
+ts_from_lbl = Label(NMRGPC_timesweep_parameter_frame, text = 'From (minutes)', width= 15, bg ='gray', font = FONTS['FONT_NORMAL'], anchor = 'center')
+ts_from_lbl.grid(row = 1, column = 1, columnspan = 2)
+
+ts_from_en = Entry(NMRGPC_timesweep_parameter_frame, width = 5, font= FONTS['FONT_ENTRY'])
+ts_from_en.grid(row = 2, column = 1)
+
+ts_to_lbl = Label(NMRGPC_timesweep_parameter_frame, text = 'To (minutes)', bg = 'gray', font = FONTS['FONT_NORMAL'], anchor = 'center')
+ts_to_lbl.grid(row = 1, column = 4, columnspan =2)
+
+ts_to_en = Entry(NMRGPC_timesweep_parameter_frame, width = 5, font=FONTS['FONT_ENTRY'])
+ts_to_en.grid(row = 2, column = 4)
+
+insert_ts_btm = Button(NMRGPC_timesweep_parameter_frame, text = 'Add', command = insert_timesweep,font= FONTS['FONT_BOTTON'])
+insert_ts_btm.grid(row = 3, column = 2)
+
+delete_ts_btm = Button(NMRGPC_timesweep_parameter_frame, text = 'Delete', command = delete_timesweep, font= FONTS['FONT_BOTTON'], state = 'disabled')
+delete_ts_btm.grid(row = 3, column = 3)
+
+confirmed_ts = Label(NMRGPC_timesweep_parameter_frame, text = 'List of Timesweeps', bg ='gray')
+confirmed_ts.config(font= FONTS['FONT_HEADER_BOLD'], anchor ='w')
+confirmed_ts.grid(row = 4, column =0)
+
+
+def finalize_timesweeps ():
+
+    reactorvol = SETUP_DEFAULT_VALUES_NMR[0][4]
+        
+    for i, timesweep in enumerate(NMRGPC_all_ts_info):
+        fr1, fr2 = reactorvol/timesweep[2], reactorvol/timesweep[3]
+        #Create DF with all the parameters
+        TIMESWEEP_PARAMETERS.loc[i, 'Start_min']= timesweep[2]
+        TIMESWEEP_PARAMETERS.loc[i, 'Stop_min']= timesweep[3]
+        TIMESWEEP_PARAMETERS.loc[i, 'Volume'] = SETUP_DEFAULT_VALUES_NMR[0][4]
+        TIMESWEEP_PARAMETERS.loc[i, 'StartFR'] = fr1
+        TIMESWEEP_PARAMETERS.loc[i, 'StopFR'] = fr2
+        TIMESWEEP_PARAMETERS.loc[i, 'DeadVolume1'] = SETUP_DEFAULT_VALUES_NMR[1][4]
+        TIMESWEEP_PARAMETERS.loc[i, 'DeadVolume2'] = SETUP_DEFAULT_VALUES_NMR[2][4]
+        TIMESWEEP_PARAMETERS.loc[i, 'DeadVolume3'] = SETUP_DEFAULT_VALUES_NMR[3][4]
+        TIMESWEEP_PARAMETERS.loc[i, 'NMRInterval'] = SETUP_DEFAULT_VALUES_NMR[4][4]
+        TIMESWEEP_PARAMETERS.loc[i, 'GPCInterval'] = SETUP_DEFAULT_VALUES_NMR[5][4]
+        TIMESWEEP_PARAMETERS.loc[i, 'StabilisationTime'] = SETUP_DEFAULT_VALUES_NMR[6][4]
+        TIMESWEEP_PARAMETERS.loc[i, 'DilutionFR'] = SETUP_DEFAULT_VALUES_NMR[7][4]
+        TIMESWEEP_PARAMETERS.loc[i, 'DeadVolume1(min)'] = TIMESWEEP_PARAMETERS.loc[i, 'DeadVolume1']/TIMESWEEP_PARAMETERS.loc[i,'StopFR']
+        TIMESWEEP_PARAMETERS.loc[i, 'DeadVolume2(min)'] = TIMESWEEP_PARAMETERS.loc[i,'DeadVolume1']/TIMESWEEP_PARAMETERS.loc[i ,'StopFR']
+        TIMESWEEP_PARAMETERS.loc[i, 'DeadVolume3(min)'] = TIMESWEEP_PARAMETERS.loc[i,'DeadVolume1']/TIMESWEEP_PARAMETERS.loc[i,'DilutionFR']
+        TIMESWEEP_PARAMETERS.loc[i, 'Mode'] = 'GPCandNMR'
+
+        TIMESWEEP_PARAMETERS.to_csv(os.path.join(CommunicationMainFolder, 'code_Parameters.csv'))
+        logger.info('code_Paramters.csv saved in communication folder ({})'.format(CommunicationMainFolder))
+
+                
+    logger.info('Confirmed timesweep Experiment:\n{}'.format(TIMESWEEP_PARAMETERS))
+    scannumbers = calculateScans.CalculateScans(TIMESWEEP_PARAMETERS, mode = 'GPCandNMR')
+    print(scannumbers)
+    totalscan = scannumbers['Stop Scan GPC'].iloc[-1]
+    total_time = (totalscan * TIMESWEEP_PARAMETERS.loc[0,'NMR interval']) /60
+    totalgpc = sum([scannumbers['GPC Samples'].iloc[i] for i in range(int(scannumbers.shape[0]))])
+        
+    entry1 = TIMESWEEP_PARAMETERS.iloc[0]
+    stabili = ((entry1['volume']*entry1['stabilisation time']))
+    allDvs = (((entry1['dead volume 1'] + entry1['Dead Volume 2']+ entry1['Dead Volume 3']) * int(scannumbers.shape[0])))
+    ts_number= int(scannumbers.shape[0])
+    totalvolume = stabili +(ts_number* allDvs)
+
+    summary_1 = Label(NMRGPC_timesweep_confirm_frame, text = 'Total time:             {}min'.format(round(total_time,1)), width = 90, bg= 'gray', anchor = 'w',padx = 10)
+    summary_1.grid(row= 1, column= 0)
+    summary_2 = Label(NMRGPC_timesweep_confirm_frame, text = 'Total NMR scans:         {}'.format(round(totalscan,0)), width = 90, bg= 'gray', anchor = 'w')
+    summary_2.grid(row= 2, column= 0)
+    summary_3 = Label(NMRGPC_timesweep_confirm_frame, text = 'Total GPC samples:       {}'.format(round(totalgpc,0)), width = 90, bg= 'gray', anchor = 'w')
+    summary_3.grid(row= 3, column= 0)
+    summary_4 = Label(NMRGPC_timesweep_confirm_frame, text = 'Volume Needed:       {} mL'.format(round(totalvolume,1)), width = 90, bg= 'gray', anchor = 'w')
+    summary_4.grid(row= 4, column= 0)
+
+    ts_from_en.configure(state = 'readonly')
+    ts_to_en.configure(state = 'readonly')
+    insert_ts_btm.configure(state = 'disabled')
+    delete_ts_btm.configure(state = 'disabled')
+    confirm_ts_btm.configure(state = 'disabled')
+
+
+    tab_control.tab(tab_NMRGPC_Conversion, state = 'normal')
+    tab_control.select(tab_NMRGPC_Conversion)
+
+    
+summary_1 = Label(NMRGPC_timesweep_confirm_frame, text = ' ', width = 90, bg= 'gray', anchor = 'w', padx = 10)
+summary_1.grid(row= 1, column= 0)
+    
+confirm_ts_btm = Button(NMRGPC_timesweep_confirm_frame, text = 'Confirm', height= 3, width = 15,  command = finalize_timesweeps, state = 'disabled', font = FONTS['FONT_BOTTON'])
+confirm_ts_btm.grid(row= 1, column =2, rowspan = 3)
 
 tab_control.grid()
 root.mainloop()

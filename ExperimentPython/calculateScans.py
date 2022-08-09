@@ -1,33 +1,33 @@
 import math
 import pandas as pd
+from log_method import setup_logger
 
+logger = setup_logger('CalculateScans')
 
-def CalculateNumberOfScans(volume, flowrate, nmr_interval):
-    time = volume / flowrate        # time to pass volume in min (mL / (mL/min))
-    n = int((time*60) / nmr_interval)    # amount of scans per given time (time in seconds / nmr_interval in seconds)
+def CalculateNumberOfScans(volume: float, flowrate:float, nmr_interval:float) -> int:
+    '''
+    Calculates the number of scans based on volume, flowrate and nmr_interval
+    '''
+    time = volume / flowrate            # time to pass volume in min (mL / (mL/min))
+    n = int((time*60) / nmr_interval)   # amount of scans per given time (time in seconds / nmr_interval in seconds)
     return n
 
-def _ScansForStabilisation(stop_min, NMR_interval, volume, mode = 'NMR', info = False):
+def CalculateNumberOfInjections(stop_min:float, GPC_interval_sec:float) -> int:
+    '''Calculates the number of injections for a timesweep based on timesweep to_min and GPC interval (sec)'''
     time_sec = stop_min * 60
-    max_scans = math.ceil((time_sec / NMR_interval))
-    scans = 'scans'
-    if mode == 'GPC':
-        scans = 'injections'
+    max_injections = math.ceil((time_sec / GPC_interval_sec))
+    logger.debug('The timesweep to {} min (= {} sec) will have {} (+1 at start) GPC injections at a GPC interval of {} min.'.format(stop_min, time_sec, max_injections, GPC_interval_sec/60))
+    
+    return max_injections
 
-    if info:
-        print('{}: Stalizing a reactor of {}mL at tres of {} will take {} {} (for a {} sec interval)'.format(mode, volume, stop_min, max_scans,scans, NMR_interval))
-    return max_scans
-
-def _calculate_reactiontimes(stop_min, NMR_interval, scans, mode = 'NMR', info = False):
-    l = []
+def _calculate_reactiontimes(stop_min:float, GPC_interval:float, scans:int) -> list:
+    '''Calculates the reaction times of the GPC injections'''
+    list_of_injections = []
     for i in range(scans):
-        l.append(i*NMR_interval)
-    l.append(stop_min*60)
-
-    if info:
-        print('{}: The reaction times (total of {}): \n\t{}'.format(mode, len(l), l))
-
-    return l
+        list_of_injections.append(i*GPC_interval)
+    list_of_injections.append(stop_min*60) #adds last one
+    logger.debug('Reaction times (sec) of injections ({} in total): {}'.format(len(list_of_injections), list_of_injections))
+    return list_of_injections
 
 def _calculate_restimes (start_min, stop_min, reactiontimes, volume, mode = 'NMR', info = False):
     f1 = volume/start_min
@@ -46,7 +46,7 @@ def _calculate_restimes (start_min, stop_min, reactiontimes, volume, mode = 'NMR
 
 
 def GPCinjections(volume, start_min, stop_min, NMR_interval, GPC_interval, GPC_injections_dict):
-
+    '''delete?'''
     n_scans_nmr =_ScansForStabilisation(stop_min, NMR_interval, volume, info = False)
     reaction_times_nmr =_calculate_reactiontimes(stop_min, NMR_interval, n_scans_nmr, info = False)
     tres_times_nmr = _calculate_restimes(start_min, stop_min, reaction_times_nmr, volume)
@@ -85,119 +85,81 @@ def GPCinjections(volume, start_min, stop_min, NMR_interval, GPC_interval, GPC_i
 
     return GPC_injections_dict
 
-'''
-overviewscansDF = pd.DataFrame()
-VOLUME = 1
-NMR_INTERVAL = 15
-GPC_INTERVAL = 3 # in min
-GPC_injections_dic = {}
-timesweeps = {0:[2,5], 1:[5,12], 2:[12,30]}
+  
 
-timesweeps_FR = {i : [VOLUME/j[0], VOLUME/j[1]] for i,j in timesweeps.items()}
+def CalculateScans(dataframe_experiment: pd.DataFrame, mode = 'NMR')-> pd.DataFrame:
+    '''
+    Calculates the scan numbers from the parameters file.
 
-Vdead1, Vdead2, Vdead3 = 0.4, 0.26, 0.157
-dilutionFR = 1.5
-'''
-
-def CalculateScans_test(dataframe_experiment):
-    scan = 0
-    startscanGPC = 0
-    for ts, FRs in timesweeps_FR.items():
-        print('\n')
-        print('startscan: {}'.format(scan))
-        startflowrate, stopflowrate = FRs[0], FRs[1]
-
-        
-        overviewscansDF.loc[ts, 'Start entry'] = scan
-        startscanGPC = scan
-        
-        scan = scan + CalculateNumberOfScans(Vdead1, stopflowrate, NMR_INTERVAL)
-        overviewscansDF.loc[ts, 'Start Scan NMR'] = scan
-        
-        scan = scan + CalculateNumberOfScans(VOLUME, stopflowrate, NMR_INTERVAL) + 1 #zero including
-        overviewscansDF.loc[ts, 'Stop Scan NMR'] = scan
-        print('Stop Scan: {}'.format(scan))
-
-        if mode == "GPCandNMR":
-            print('Start scan GPC: {}'.format(startscanGPC))
-            scanGPC = startscanGPC + CalculateNumberOfScans(Vdead1+Vdead2, stopflowrate, NMR_INTERVAL) + CalculateNumberOfScans(Vdead3, dilutionFR, NMR_INTERVAL)
-            overviewscansDF.loc[ts, 'Start Scan GPC'] = scanGPC
-
-            a = _ScansForStabilisation(VOLUME /stopflowrate, GPC_INTERVAL*60, VOLUME, mode = 'GPC', info = True)
-            injections = _calculate_reactiontimes(VOLUME /stopflowrate, GPC_INTERVAL*60, a, mode = 'GPC', info = True)
-
-            GPCsamples = int(len(injections))
-
-            time = (GPCsamples -1) *GPC_INTERVAL #corrected time for GPC timesweep (minus one because one at the beginning of the timesweep)
-            scansGPCtimesweep = time*(60/NMR_INTERVAL) #amount of scans for the timesweep
-            print(scansGPCtimesweep)
-            stopGPC = scanGPC + scansGPCtimesweep
-
-            overviewscansDF.loc[ts, 'Stop Scan GPC'] = stopGPC
-            overviewscansDF.loc[ts, 'GPC Samples'] =  GPCsamples
-            print(stopGPC)
-            scan = stopGPC +1
-        
-        else:
-            overviewscansDF.loc[ts, 'Start Scan GPC'] = 'N.A.'
-            print(scan)
-            scan +=1
-
-    return overviewscansDF    
-
-def CalculateScans(dataframe_experiment, mode = 'NMR'):
+    Parameters:
+    -----------
+    dataframe_experiment: pd.DataFrame
+        pandas dataframe with paramters of experiment
+    mode: str
+        mode of operation, NMR (default) or GPCandNMR 
+    
+    Returns
+    --------
+    overviewscansDF: pd.DataFrame
+        dataframe with the start and stop scans of the experiment
+    
+    '''
     overviewscansDF = pd.DataFrame()
+
+    #data acquisition starts after stabilization, so does the calculations
     scan = 0
     startscanGPC = 0
-    for ts in range((dataframe_experiment.shape[0])): #number of timesweeps
-        #print('\n')
-        volume, stopflowrate, dilutionFR, Vdead1, Vdead2, Vdead3, NMRinterval, GPCinterval, startflowrate = dataframe_experiment.loc[ts, ['volume', 'StopFR', 'Dilution FR','dead volume 1', 'Dead Volume 2', 'Dead Volume 3', 'NMR interval', 'GPC Interval', 'StartFR']]
-        #print('startscan: {}'.format(scan))
+    
+    #loops over every timesweep
+    for ts in range((dataframe_experiment.shape[0])): #number of timesweeps (zero-indexed)
+        logger.debug('Timesweep {}'.format(ts+1))
+        volume, stopflowrate, dilutionFR, Vdead1, Vdead2, Vdead3, NMRinterval, GPCinterval, to_min = dataframe_experiment.loc[ts, ['Volume', 'StopFR', 'DilutionFR','DeadVolume1', 'DeadVolume2', 'DeadVolume3', 'NMRInterval', 'GPCInterval', 'Stop_min']]
         
         overviewscansDF.loc[ts, 'Start entry'] = scan
-        startscanGPC = scan
+        startscanGPC = scan 
         
-        scan = scan + CalculateNumberOfScans(Vdead1, stopflowrate, NMRinterval)
+        scans_of_deadvolume1 = CalculateNumberOfScans(Vdead1, stopflowrate, NMRinterval) # number of scans for dead volume 1
+        start_scan = scan
+        scan = start_scan + scans_of_deadvolume1 #new scan number
+        logger.debug('Dead Volume 1 ({} mL) at flowrate {} mL/min takes {} scans (NMR interval of {} sec); from scan {} to scan {}.'.format(Vdead1, stopflowrate, scans_of_deadvolume1, NMRinterval, start_scan, scan))
         overviewscansDF.loc[ts, 'Start Scan NMR'] = scan
         
-        scan = scan + CalculateNumberOfScans(volume, stopflowrate, NMRinterval) + 1 #zero including
+        scans_of_reactor = CalculateNumberOfScans(volume, stopflowrate, NMRinterval)
+        start_scan = scan
+        scan = start_scan + scans_of_reactor + 1 #zero including
         overviewscansDF.loc[ts, 'Stop Scan NMR'] = scan
-        #print('Stop Scan: {}'.format(scan))
+        logger.debug('Reactor volume ({} mL) at flowrate {} mL/min takes {} scans (NMR interval of {} sec); from scan {} to scan {}.'.format(volume, stopflowrate, scans_of_reactor, NMRinterval, start_scan, scan))
 
         if mode == "GPCandNMR":
-            print('mode: {}'.format(mode))
-            #print('Start scan GPC: {}'.format(startscanGPC))
-            scanGPC = startscanGPC + CalculateNumberOfScans(Vdead1+Vdead2, stopflowrate, NMRinterval) + CalculateNumberOfScans(Vdead3, dilutionFR, NMRinterval)
+            logger.debug('Mode Of Operation: {}'.format(mode))
+
+            scans_of_deadvolume1_and_2 = CalculateNumberOfScans(Vdead1+Vdead2, stopflowrate, NMRinterval)
+            scans_of_deadvolume3 = CalculateNumberOfScans(Vdead3, dilutionFR, NMRinterval)
+            scanGPC = startscanGPC + scans_of_deadvolume1_and_2 + scans_of_deadvolume3
             overviewscansDF.loc[ts, 'Start Scan GPC'] = scanGPC
 
-            a = _ScansForStabilisation(volume /stopflowrate, GPCinterval*60, volume, mode = 'GPC', info = False)
-            injections = _calculate_reactiontimes(volume /stopflowrate, GPCinterval*60, a, mode = 'GPC', info = False)
+            logger.debug('Dead Volume 1 and 2 ({} mL + {} mL = {} mL) at flowrate {} mL/min PLUS Dead Volume 3 ({} mL) at dilution flowrate {} mL/min takes {} scans (NMR interval of {} sec); from scan {} to scan {}.'.format(Vdead1, Vdead2, Vdead1+Vdead2, stopflowrate, Vdead3, dilutionFR, scans_of_reactor, NMRinterval, startscanGPC, scanGPC))
+            
+            number_of_injections = CalculateNumberOfInjections(to_min, GPCinterval*60)
+            injections = _calculate_reactiontimes(to_min, GPCinterval*60, number_of_injections)
 
             GPCsamples = int(len(injections))
 
             time = (GPCsamples -1) *GPCinterval #corrected time for GPC timesweep (minus one because one at the beginning of the timesweep)
             scansGPCtimesweep = int(time*(60/NMRinterval)) #amount of scans for the timesweep
             stopGPC = scanGPC + scansGPCtimesweep
+            logger.debug('GPC Timesweep ({} min; {} injections) takes {} scans (NMR interval of {} sec); from scan {} to scan {}.'.format(time, GPCsamples, scansGPCtimesweep, NMRinterval, scanGPC, stopGPC))
             
-            print('stop scan gpc: {}'.format(stopGPC))
             overviewscansDF.loc[ts, 'Stop Scan GPC'] = int(stopGPC)
             overviewscansDF.loc[ts, 'GPC Samples'] =  int(GPCsamples)
-            scan = stopGPC +1
+            scan = stopGPC +1 #new start scan
         
         else:
             overviewscansDF.loc[ts, 'Start Scan GPC'] = 'N.A.'
             overviewscansDF.loc[ts, 'Stop Scan GPC'] = 'N.A.'
             scan +=1
-    print('OverviewScansDF: {}'.format(overviewscansDF))
+
+    logger.info('OverviewScansDF:\n{}'.format(overviewscansDF))
     return overviewscansDF
     
     
-#print(overviewscansDF)
-"""
-for times in timesweeps.values():
-    injections = GPCinjections(VOLUME, times[0], times[1], NMR_INTERVAL, GPC_INTERVAL, GPC_injections_dic)
-print(injections)
-
-df = input('>> ')
-scans = CalculateScans(df)
-"""
