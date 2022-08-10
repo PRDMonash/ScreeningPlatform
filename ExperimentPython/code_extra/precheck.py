@@ -1,4 +1,4 @@
-from log_method import setup_logger
+from code_extra.log_method import setup_logger
 import os
 
 logger = setup_logger('Check Pre-experiment')

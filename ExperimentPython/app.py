@@ -5,15 +5,13 @@ from tkinter import filedialog
 import os
 import pandas as pd
 
-from log_method import setup_logger
-from defining_folder import defining_communication_folder, defining_PsswinFolder, defining_NMRFolder, SearchExperimentFolder
-from helpers import isfloat
-from Constants import SETUP_DEFAULT_VALUES_NMR, FONTS, TIMESWEEP_PARAMETERS, FOLDERS
-import calculateScans
+from code_extra.log_method import setup_logger
+from code_extra.defining_folder import defining_communication_folder, defining_PsswinFolder, defining_NMRFolder, SearchExperimentFolder
+from code_extra.helpers import isfloat
+from code_extra.Constants import SETUP_DEFAULT_VALUES_NMR, FONTS, TIMESWEEP_PARAMETERS, FOLDERS
+import code_extra.calculateScans
 
-
-
-from precheck import check_files
+from code_extra.precheck import check_files
 
 
 check_files()

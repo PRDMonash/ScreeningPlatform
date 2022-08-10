@@ -1,6 +1,6 @@
 import math
 import pandas as pd
-from log_method import setup_logger
+from code_extra.log_method import setup_logger
 
 logger = setup_logger('CalculateScans')
 
