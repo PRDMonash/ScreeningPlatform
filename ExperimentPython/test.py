@@ -1,9 +1,11 @@
 import logging
-from log_method import setup_logger
+from code_extra.log_method import setup_logger
 import os
-from calculateScans import CalculateScans
-from defining_folder import SearchExperimentFolder
-from Constants import FOLDERS
+from code_extra.calculateScans import CalculateScans
+from code_extra.defining_folder import SearchExperimentFolder
+from code_extra.Constants import FOLDERS
+from code_extra.start_experiment import starting
+from ExperimentFolder.experiment_folder import experiment_folder
 import pandas as pd
 
 logger = setup_logger('test')
@@ -37,6 +39,10 @@ def testing_experimentfolder():
     print(os.path.exists(comfolder))
     folder = 'S:/Sci-Chem/PRD/NMR 112/Automated Platform/2022/08/9/433PM_sdf'
     SearchExperimentFolder(folder, comfolder, mode = 'GPCandNMR')
+    
+def testing_experimentFolder():
+    expfolder = experiment_folder('S:/Sci-Chem/PRD/NMR 112/Automated Platform/2022/08/10/1253PM_JVH-DEMO')
+    expfolder.all_subfolders()
     
 
 testing_experimentfolder()

@@ -9,12 +9,14 @@ from code_extra.log_method import setup_logger
 from code_extra.defining_folder import defining_communication_folder, defining_PsswinFolder, defining_NMRFolder, SearchExperimentFolder
 from code_extra.helpers import isfloat
 from code_extra.Constants import SETUP_DEFAULT_VALUES_NMR, FONTS, TIMESWEEP_PARAMETERS, FOLDERS
-import code_extra.calculateScans
+from code_extra.calculateScans import CalculateScans
 
-from code_extra.precheck import check_files
+from code_extra.precheck import check_files, check_Emailconnection
+from code_extra.start_experiment import starting
 
 
 check_files()
+email_check = check_Emailconnection()
 
 logger = setup_logger('App')
 
@@ -570,7 +572,7 @@ def finalize_timesweeps ():
 
                 
     logger.info('Confirmed timesweep Experiment:\n{}'.format(TIMESWEEP_PARAMETERS))
-    scannumbers = calculateScans.CalculateScans(TIMESWEEP_PARAMETERS, mode = 'GPCandNMR')
+    scannumbers = CalculateScans(TIMESWEEP_PARAMETERS, mode = 'GPCandNMR')
     
     scannumbers.to_csv(os.path.join(CommunicationMainFolder, 'code_Scans.csv'))
     logger.info('code_Scans.csv saved in communication folder ({})'.format(CommunicationMainFolder))
@@ -771,6 +773,7 @@ def confirmLabview():
     '''
     Confirms if LabView is started
     '''
+    global ExperimentFolder
     global experiment_extra
 
     if not os.path.exists(Pathlastexp_textfile):
@@ -832,6 +835,9 @@ def confirmSpinsolve():
     entryEmail.configure(state = 'normal')
     experiment_extra['Emails'] = [[]]
     labelEmailinfo.configure(text = 'Optional: Data will be send via email at the end of the experiment')
+    if not email_check:
+        confirm_emailadress()
+        labelEmailinfo.configure(text = 'Email function not in use. Connection could not be made.')
 
 def add_emailadress():
     emailadress = entryEmail.get()
@@ -942,7 +948,15 @@ labelEmailinfo = Label(NMRGPC_parameter_frame_init, text = '', font = FONTS['FON
 labelEmailinfo.grid(row = 12, column = 0, columnspan= 2)
 
 def startexp():
-    print('start')
+    root.destroy()
+
+    startfile = open(Temporary_textfile, 'w') 
+    startfile.write('start')
+    startfile.close()
+
+    logger.info('Experiment started by operator. Start sign is communicated to LabView.')
+
+    starting(ExperimentFolder)
 
 start_btn = Button(NMRGPC_btm_frame_init, text ='Start', font = FONTS['FONT_HEADER_BOLD'] ,state = 'disabled', command = startexp)
 start_btn.grid()
