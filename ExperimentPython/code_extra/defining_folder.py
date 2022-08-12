@@ -1,6 +1,7 @@
 from code_extra.log_method import setup_logger
 import os
 import shutil
+from code_extra.Constants import FOLDERS
 
 logger = setup_logger('Defining Folders')
 
@@ -40,6 +41,7 @@ def defining_communication_folder(parentfolder:str, update = False):
 
         if update:
             logger.info("New CommunicationMainFolder: {}".format(CommunicationMainFolder))
+            FOLDERS['COMMUNICATION'] = CommunicationMainFolder
         else:
             logger.info("CommunicationMainFolder: {}".format(CommunicationMainFolder))
     except FileNotFoundError as e:

@@ -1,4 +1,5 @@
 from pathlib import Path
+from sys import exec_prefix
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
@@ -25,6 +26,8 @@ PsswinFolder = defining_PsswinFolder(FOLDERS['GPC'])
 NMRFolder = defining_NMRFolder(FOLDERS['NMR'])
 
 Labviewscript = 'GPC-NMR Timesweep_GUIversion_version4_lab112_gpcPC.vi'
+global experiment_extra
+experiment_extra = pd.DataFrame(columns = ['code', 'Mainfolder','GPCfolder', 'Timesweepfolder', 'Infofolder','Softwarefolder', 'Rawfolder', 'Plotsfolder', 'COMMUNICATION', 'GPC', 'NMR'])
 
 spinsolveImage = 'Spinsolve.png'      
 ##### APP ####
@@ -65,7 +68,7 @@ def NMR():
 
 def NMRGPC():
     ''' Enables the tabs for NMR and GPC mode'''
-
+    global experiment_extra
     tab_control.tab(tab_NMRGPC_Setup, state = 'normal')
     tab_control.tab(tab_NMRGPC_Timesweeps, state = 'disabled')
     tab_control.tab(tab_NMRGPC_Initialisation, state = 'normal')
@@ -74,8 +77,13 @@ def NMRGPC():
     tab_control.select(tab_NMRGPC_Setup)
     optionNMR_btn.configure(state= 'disabled')
     optionNMRGPC_btn.configure(state= 'disabled')
-    #updateGUI('Mode: NMR and GPC')
+
     logger.info('Selected mode: NMR and GPC')
+
+    for folder, directory in FOLDERS.items():
+        logger.info('{} folder confirmed as {}'.format(folder, directory))
+        experiment_extra.loc[0,folder] = directory
+        print(experiment_extra)
    
 # NMR-GPC tabs
 tab_NMRGPC_Setup = ttk.Frame(tab_control)
@@ -118,7 +126,7 @@ Welcome_Option_frame = Frame(tab_welcome)
 Welcome_Option_frame.grid()
 Welcom_option_frame_header = Label(Welcome_Option_frame, text = 'Choose a mode of operation', font = FONTS['FONT_HEADER_BOLD'])
 Welcom_option_frame_header.grid(row = 0, column = 0, columnspan = 2, padx = 10, pady = 10)
-optionNMR_btn = Button(Welcome_Option_frame, text = "NMR", command = NMR,width = 20, height = 3, font = FONTS['FONT_HEADER_BOLD'])
+optionNMR_btn = Button(Welcome_Option_frame, text = "NMR", command = NMR, width = 20, height = 3, font = FONTS['FONT_HEADER_BOLD'])
 optionNMR_btn.grid(row = 1, column = 0, padx = 10, pady=10)
 optionNMRGPC_btn = Button(Welcome_Option_frame, text = "NMR-GPC", command = NMRGPC, width = 20, height = 3, font = FONTS['FONT_HEADER_BOLD'])
 optionNMRGPC_btn.grid(row =1, column = 1, padx = 10, pady = 10)
@@ -208,7 +216,6 @@ def change_values():
     list_parameters = SETUP_DEFAULT_VALUES_NMR
     entries_values = [i[0].get() for i in list_parameters] # i[0] are the entry fields of the GUI; .get() extracts the values
     logger.debug(entries_values)
-    
 
     for i, value in enumerate(entries_values):
         parameter = SETUP_DEFAULT_VALUES_NMR[i][2] # extracts the parameter
@@ -257,7 +264,7 @@ for i, entry_values in enumerate(SETUP_DEFAULT_VALUES_NMR):
 
 def Confirm_reactor_parameters ():
     logger.info('Reactor parameters confirmed')
-    confirm_reactorParameters.configure(state = 'disabled')
+
     for parameterline in SETUP_DEFAULT_VALUES_NMR: # once confirmed, do not allow further changes by disabling button
         parameterline[5].configure(state = 'disabled') # button disabled
         parameterline[0].configure(state = 'readonly') # entry readonly
@@ -293,7 +300,7 @@ def changeSolution():
         finalMonomer, finalSolvent, finalRAFT, finalInitiator = optionsMonomer.get(), optionsSolvent.get(), optionsRAFT.get(), optionsinitiator.get() 
         logger.debug('Selected Chemicals: {}, {}, {}, {}'.format(finalMonomer, finalSolvent, finalRAFT, finalInitiator))
 
-        # extract all values from the entries and checks for floats (no strings); closes window if no string
+        # extract all values from the entries and checks for floats (no strings); closes window if string
         list_entries = [gramRAFT, graminitiator, mLMonomer, mLsolvent]
         for entry in list_entries:
             if not isfloat(entry.get()):
@@ -356,7 +363,10 @@ def changeSolution():
         solution_popup.destroy()
         solutionSummary1.config(text = summaryString)
         logger.info('Reaction Solution confirmed: {}'.format(summaryString.replace('\n','')))
+
+        #creates the csv file of the dataframe
         SolutionDataframe.to_csv(os.path.join(CommunicationMainFolder, 'code_Solution.csv'))
+
         logger.info('code_Solution.csv saved in Communication folder ({})'.format(CommunicationMainFolder))
         
 
@@ -735,7 +745,7 @@ confirm_conv_btm_NMRGPC = Button(Conversion_info_frame_NMRGPC, text = 'Confirm',
 confirm_conv_btm_NMRGPC.grid(row= 1, column =2, rowspan = 3)
 
 ####### Init Tab ######
-experiment_extra = pd.DataFrame(columns = ['code', 'Mainfolder','GPCfolder', 'Timesweepfolder', 'Infofolder','Softwarefolder', 'Rawfolder', 'Plotsfolder'])
+
 
 #Create Main frame of init Tab
 NMRGPC_top_frame_init = Frame(tab_NMRGPC_Initialisation, bg='white', width=1000, height=50, pady=3, padx = 400)
@@ -853,6 +863,9 @@ def confirm_emailadress():
     entryEmail.configure(state = 'readonly')
     start_btn.configure(state = 'normal')
     confirmEmail.configure(state = 'disabled')
+    
+    experiment_extra.to_csv(os.path.join(experiment_extra.loc[0,'Softwarefolder'], '{}_extras.csv'.format(code)))
+    logger.info('{}_extra.csv saved in {}'.format(code, experiment_extra.loc[0,'Softwarefolder']))
 
 def HelpLabView():
     tab_control.tab(tab_LabView_help, state = 'normal')
@@ -875,13 +888,16 @@ def HelpSpinsolve():
     tab_control.tab(tab_NMRGPC_Timesweeps, state = 'disabled')
     tab_control.tab(tab_NMRGPC_Initialisation, state = 'disabled')
 
-
 def confirm_code ():
     '''
     Extracts code from entry field and writes it in temporary text file (as 'Code,,code') in Communication folder. Can now be read by LabView.
     '''
     global code
     code = code_en.get()
+
+    if '_' in code: # code will later be extracted from path as .split('_')[-1]
+        logger.warning('Code cannot contain _.')
+        return
     code_en.configure(state = 'readonly')
     NMRGPC_confirm_code.configure(state = 'disabled')
 
@@ -971,4 +987,5 @@ parameter_frame_exp.grid(row=1, sticky="ew")
 name_window_exp = Label(top_frame_exp, text= 'Experiment',bg='white', font = FONTS['FONT_HEADER'])
 name_window_exp.grid()
 tab_control.grid()
+
 root.mainloop()
